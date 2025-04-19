@@ -1,0 +1,43 @@
+import pymysql
+import pandas as pd
+
+# Configuración de la conexión
+usuario = "tu_usuario"
+password = "tu_password"
+host = "localhost"
+nombre_base_de_datos = "tu_base_datos"
+tabla_mysql = "tu_tabla"
+
+# Conexión a MySQL
+conexion = pymysql.connect(
+    host=host,
+    user=usuario,
+    password=password,
+    database=nombre_base_de_datos
+)
+
+try:
+    # Lee los datos del CSV
+    archivo_csv = "ruta/al/archivo.csv"
+    datos_csv = pd.read_csv(archivo_csv, sep=",", on_bad_lines='skip', parse_dates=['entry_date', 'last_update'])
+    
+    datos_csv['entry_date'] = pd.to_datetime(datos_csv['entry_date'], format='%Y/%m/%d')
+    datos_csv['last_update'] = pd.to_datetime(datos_csv['last_update'], format='%Y/%m/%d')
+    datos_csv['is_free'] = datos_csv['is_free'].astype(bool)
+
+    # Inserción de datos fila por fila
+    with conexion.cursor() as cursor:
+        for _, fila in datos_csv.iterrows():
+            sql = f"""
+            INSERT INTO {tabla_mysql} (entry_date, last_update, is_free) 
+            VALUES (%s, %s, %s)
+            """
+            cursor.execute(sql, (fila['entry_date'], fila['last_update'], fila['is_free']))
+    
+    conexion.commit()
+    print(f"Datos insertados correctamente en la tabla '{tabla_mysql}' de MySQL.")
+except Exception as e:
+    print(f"Error: {str(e)}")
+finally:
+    conexion.close()
+
